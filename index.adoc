@@ -46,17 +46,12 @@ Every presentation should start with some excuse, why you even are here
 [%step]
 * March 2021 - last commit
 * everything works
-* September 2022 - updated depndencies
+* September 2022 - updated dependencies
 * migration took about 2-3 weeks
 
 === Why?
 
 === Cats Effect 2 to 3
-
-* revamp type class hierarchy, e.g. ``ConcurrentEffect``, ``ContextShift`` disappeared
-* ``unsafe`` operations (occasionally needed) are now run differently (require implicit)
-* forced updated of libraries which depended on CE: FS2, Http4s, Doobie
-* there is no Monix for Cats Effect 3 ATM
 
 === !
 
@@ -82,23 +77,30 @@ someIO.unsafeRunSync()
 Nice for new users, worse for existing users.
 --
 
-=== Monix and TaskLocal
+=== !
+
+Also:
+
+[%step]
+* forced updated of libraries which depended on CE: FS2, Http4s, Doobie
+* there is no Monix for Cats Effect 3 ATM
+
+=== Monix and ``Local``
+
+=== !
 
 [source, scala]
 --
-import monix.execution.misc.Local
-
-// Solution described by OlegPy in https://olegpy.com/better-logging-monix-1/
+// Based on https://olegpy.com/better-logging-monix-1/
 final class MonixMDCAdapter extends LogbackMDCAdapter {
-  private[this] val map = Local[ju.Map[String, String]](ju.Collections.emptyMap())
-
+  private val map = monix.execution.misc.Local(
+    java.util.Collections.emptyMap[String, String]())
   // methods delegating to map
 }
 object MonixMDCAdapter {
-
-  // Initialize MDC.mdcAdapter (with default scope) to our implementation.
   def configure(): Unit = {
-    val field = classOf[org.slf4j.MDC].getDeclaredField("mdcAdapter")
+    val field = classOf[org.slf4j.MDC]
+      .getDeclaredField("mdcAdapter")
     field.setAccessible(true)
     field.set(null, new MonixMDCAdapter)
   }
@@ -117,12 +119,53 @@ task.executeWithOptions(_.enableLocalContextPropagation)
 
 [source, scala]
 --
-private val threadLocal: ThreadLocal[scala.collection.immutable.Map[IOLocal[_], Any]] =
-    ThreadLocal.withInitial(() => scala.collection.immutable.Map.empty[IOLocal[_], Any])
-
-def configureStatePropagation(tc: Async[IO]): Async[IO] = new Async[IO] {
-  // extract IOLocal and set it in threadLocal in every operation which might use it
+object IOGlobal {
+  private val threadLocal = ThreadLocal.withInitial(
+    () => Map.empty[IOLocal[_], Any]
+  )
+  // IOLocalHack.get : IO[Map.empty[IOLocal[_], Any]]
+  def propagateState[A](thunk: => IO[A]): IO[A] =
+    IOLocalHack.get.flatMap { state =>
+      threadLocal.set(state); thunk }
 }
+--
+
+[source, scala]
+--
+def configureAsync(tc: Async[IO]) = new Async[IO] {
+  // extract IOLocal and set it in threadLocal
+  // in every operation which might use it
+  def suspend[A](hint: Sync.Type)(thunk: => A) =
+    tc.suspend(hint)(propagateState(tc.pure(thunk))).flatten
+  def handleErrorWith[A](fa: IO[A])(f: Throwable => IO[A]) =
+    tc.handleErrorWith(fa)(e => propagateState(f(e)))
+  def flatMap[A, B](fa: IO[A])(f: A => IO[B]) =
+    tc.flatMap(fa)(a => propagateState(f(a)))
+  def tailRecM[A, B](a: A)(f: A => IO[Either[A, B]]) =
+    tc.tailRecM(a)(b => propagateState(f(b)))
+  // and plain redirect to tc for everythin else
+}
+--
+
+=== FS2 Kafka
+
+[source, scala]
+--
+type EventBusProducer[F[_], Event] = Pipe[
+  F,
+  (UUID, Event),
+  ProducerResult[UUID, Event, Unit]
+]
+--
+
+[source, scala]
+--
+// changed the order of parameters in ProducerResult
+type EventBusProducer[F[_], Event] = Pipe[
+  F,
+  (UUID, Event),
+  ProducerResult[Unit, UUID, Event] // <-- here
+]
 --
 
 === Http4s
@@ -141,11 +184,47 @@ import org.http4s.blaze.server.BlazeServerBuilder
 import org.typelevel.ci.CIString
 --
 
+=== !
+
+TODO
+
 * Tapir 0.x to 1.x
-  * added new type parameter (representing auth)
-  * changed the format of configs
+* added new type parameter (representing auth)
+* changed the format of configs
 
 == Other Examples from History
+
+=== Scala 2.12 to 2.13
+
+TODO
+
+=== Happy experiments
+
+[%step]
+* ``scala-parallel-collections``
+* ``scala-parser-combinators``
+* ``scala-continuations``
+
+
+[NOTE.speaker]
+--
+Still present in old textbooks. Usually, you move proven things into standard library, not kick them off inside it and then move out.
+--
+
+=== Neverending 0.x version
+
+[%step]
+* TODO
+
+=== Major version update
+
+[%step]
+* TODO
+
+=== Monad of the season
+
+[%step]
+* TODO
 
 == What Can We Do About It?
 
