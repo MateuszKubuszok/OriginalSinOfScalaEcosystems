@@ -1,0 +1,156 @@
+// 45 minutes
+:revealjs_totalTime: 2700
+
+= The Original Sin of Scala Ecosystems
+
+Mateusz Kubuszok
+
+== About me
+
+[%step]
+* breaking things in Scala for 7+ years
+* breaking things for money for 10 years
+* breaking things for fun for 18(?) years
+* a little bit of open source
+* blog at https://kubuszok.com[Kubuszok.com]
+* niche https://leanpub.com/jvm-scala-book[Things you need to know about JVM (that matter in Scala)] ebook
+
+[NOTE.speaker]
+--
+Every presentation should start with some excuse, why you even are here
+--
+
+== Agenda
+
+[%step]
+* a (de)motivating example
+* more examples from history
+* pattern?
+* what can we do about it
+
+== A (de)motivating example
+
+=== My idea
+
+[%step]
+* OSS clone of Reddit
+* Scala 2.13
+* Cats + Cats Effect 2 + FS2 + Http4s
+* Monix as IO, TaskLocal for MDC
+* Tapir
+* Jsoniter
+* Scala Newtype
+
+=== !
+
+[%step]
+* March 2021 - last commit
+* everything works
+* September 2022 - updated depndencies
+* migration took about 2-3 weeks
+
+=== Why?
+
+=== Cats Effect 2 to 3
+
+* revamp type class hierarchy, e.g. ``ConcurrentEffect``, ``ContextShift`` disappeared
+* ``unsafe`` operations (occasionally needed) are now run differently (require implicit)
+* forced updated of libraries which depended on CE: FS2, Http4s, Doobie
+* there is no Monix for Cats Effect 3 ATM
+
+=== !
+
+[source, scala]
+--
+def myModule[F[_] : ConcurrentEffect
+                  : ContextShift
+                  : Timer]: Resource[F, MyModule] = ...
+
+someIO.unsafeRunSync()
+--
+
+[source, scala]
+--
+def myModule[F[_]: Async]: Resource[F, MyModule] = ...
+
+import cats.effect.unsafe.implicits.global
+someIO.unsafeRunSync()
+--
+
+[NOTE.speaker]
+--
+Nice for new users, worse for existing users.
+--
+
+=== Monix and TaskLocal
+
+[source, scala]
+--
+import monix.execution.misc.Local
+
+// Solution described by OlegPy in https://olegpy.com/better-logging-monix-1/
+final class MonixMDCAdapter extends LogbackMDCAdapter {
+  private[this] val map = Local[ju.Map[String, String]](ju.Collections.emptyMap())
+
+  // methods delegating to map
+}
+object MonixMDCAdapter {
+
+  // Initialize MDC.mdcAdapter (with default scope) to our implementation.
+  def configure(): Unit = {
+    val field = classOf[org.slf4j.MDC].getDeclaredField("mdcAdapter")
+    field.setAccessible(true)
+    field.set(null, new MonixMDCAdapter)
+  }
+}
+--
+
+[source, scala]
+--
+// set up Logback
+MonixMDCAdapter.configure()
+// propagating changes to Local within Task
+task.executeWithOptions(_.enableLocalContextPropagation)
+--
+
+=== !
+
+[source, scala]
+--
+private val threadLocal: ThreadLocal[scala.collection.immutable.Map[IOLocal[_], Any]] =
+    ThreadLocal.withInitial(() => scala.collection.immutable.Map.empty[IOLocal[_], Any])
+
+def configureStatePropagation(tc: Async[IO]): Async[IO] = new Async[IO] {
+  // extract IOLocal and set it in threadLocal in every operation which might use it
+}
+--
+
+=== Http4s
+
+[source, scala]
+--
+import org.http4s.server.blaze.BlazeServerBuilder
+import org.http4s.util.{ CaseInsensitiveString => CIString }
+--
+
+[source, scala]
+--
+// Blaze moved to a separate dependency
+import org.http4s.blaze.server.BlazeServerBuilder
+// CIString became deprecated alias
+import org.typelevel.ci.CIString
+--
+
+* Tapir 0.x to 1.x
+  * added new type parameter (representing auth)
+  * changed the format of configs
+
+== Other Examples from History
+
+== What Can We Do About It?
+
+== Summary
+
+== Thank You!
+
+
