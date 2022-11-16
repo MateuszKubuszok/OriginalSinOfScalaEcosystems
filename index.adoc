@@ -255,7 +255,34 @@ Maintainers tend to overlap the support for new versions but it is still a pain.
 * MTL
 * ZIO with ZLayers
 
+== Some observations?
+
+[%step]
+* the "new is always better" attitude
+* which prioritizes greenfield over maintenance
+* relatively (to other languages) frequent breaking changes
+* in statically typed FP world API changes are very invasive
+* how much of your API is defined with the types you directly control?
+
+== Thesis
+
+In Scala we have a glory-driven development.
+
 == What Can We Do About It?
+
+=== Language
+
+[%step]
+* Scala 3 LTS initiative
+* MiMa
+* thinking about tooling when new features are introduced
+
+=== Library maintainers
+
+[%step]
+* not staying on early-semver forever
+* committing to major version for a long time
+* deciding when the API would be "good enough" to stop rewriting it without some graceful migration strategy
 
 == Summary
 
