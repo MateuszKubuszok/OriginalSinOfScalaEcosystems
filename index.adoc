@@ -214,17 +214,46 @@ Still present in old textbooks. Usually, you move proven things into standard li
 === Neverending 0.x version
 
 [%step]
-* TODO
+* Circe - 7 years since creation (https://github.com/circe/circe/releases/tag/v0.1.0[2015]), still 0.x
+* Doobie - 7 years between 0.1 (https://github.com/tpolecat/doobie/releases/tag/v0.1[2014]) and 1.0-RC1 (https://github.com/tpolecat/doobie/releases/tag/v1.0.0-RC1[2021])
+* Http4s - 5 years since creation (https://github.com/http4s/http4s/releases/tag/v0.1.0[2017]), 0.x and unstable milestones 1.0
+* Chimney - 5 years since creation (https://github.com/scalalandio/chimney/releases/tag/0.1.0[2017]), still 0.x
+
+[NOTE.speaker]
+--
+No guarantees that an update won't break an API.
+--
 
 === Major version update
 
 [%step]
-* TODO
+* Cats Effect 1.0 (2018) to Cats Effect 2.0 (2019) - 1 year
+* Cats Effect 2.0 (2019) to Cats Effect 3.0 (2021) - 2 years
+* ZIO 1.0 (2020) to ZIO 2.0 (2022) - 2 years
 
-=== Monad of the season
+[NOTE.speaker]
+--
+Maintainers tend to overlap the support for new versions but it is still a pain.
+--
 
+[.columns]
+=== Monad of the Year
+
+[.column]
 [%step]
-* TODO
+* Scala's Future
+* Scalaz Future
+* Scalaz Task
+* Monix Task
+* Scalaz IO -> ZIO
+
+[.column]
+[%step]
+* free -> freer -> eff
+* monad transformers
+* tagless final
+* MTL
+* ZIO with ZLayers
 
 == What Can We Do About It?
 

@@ -1,7 +1,7 @@
 {
   "name": "presentation",
   "version": "1.0.0",
-  "description": "Original Sin of Scala Ecosystems",
+  "description": "The Original Sin of Scala Ecosystems",
   "homepage": "https://kubuszok.com",
   "scripts": {
     "start": "grunt serve",
