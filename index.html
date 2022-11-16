@@ -427,7 +427,7 @@ someIO.unsafeRunSync()</code></pre></div></div>
 import cats.effect.unsafe.implicits.global
 someIO.unsafeRunSync()</code></pre></div></div>
 <aside class="notes"><div class="paragraph"><p>Nice for new users, worse for existing users.</p></div></aside></div></section><section><div class="slide-content"><div class="paragraph"><p>Also:</p></div>
-<div class="ulist"><ul><li class="fragment"><p>forced updated of libraries which depended on CE: FS2, Http4s, Doobie</p></li><li class="fragment"><p>there is no Monix for Cats Effect 3 ATM</p></li></ul></div></div></section><section id="_monix_and_local"><h2>Monix and <code>Local</code></h2></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// Based on https://olegpy.com/better-logging-monix-1/
+<div class="ulist"><ul><li class="fragment"><p>forced updates of libraries which depended on CE: FS2, Http4s, Doobie</p></li><li class="fragment"><p>there is no Monix for Cats Effect 3 ATM</p></li></ul></div></div></section><section id="_monix_and_local"><h2>Monix and <code>Local</code></h2></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// Based on https://olegpy.com/better-logging-monix-1/
 final class MonixMDCAdapter extends LogbackMDCAdapter {
   private val map = monix.execution.misc.Local(
     java.util.Collections.emptyMap[String, String]())
@@ -480,17 +480,70 @@ import org.http4s.util.{ CaseInsensitiveString =&gt; CIString }</code></pre></di
 <div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">// Blaze moved to a separate dependency
 import org.http4s.blaze.server.BlazeServerBuilder
 // CIString became deprecated alias
-import org.typelevel.ci.CIString</code></pre></div></div></div></section><section><div class="slide-content"><div class="paragraph"><p>TODO</p></div>
-<div class="ulist"><ul><li><p>Tapir 0.x to 1.x</p></li><li><p>added new type parameter (representing auth)</p></li><li><p>changed the format of configs</p></li></ul></div></div></section></section>
-<section><section id="_other_examples_from_history"><h2>Other Examples from History</h2></section><section id="_scala_2_12_to_2_13"><h2>Scala 2.12 to 2.13</h2><div class="slide-content"><div class="paragraph"><p>TODO</p></div></div></section><section id="_happy_experiments"><h2>Happy experiments</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p><code>scala-parallel-collections</code></p></li><li class="fragment"><p><code>scala-parser-combinators</code></p></li><li class="fragment"><p><code>scala-continuations</code></p></li></ul></div>
+import org.typelevel.ci.CIString</code></pre></div></div></div></section><section id="_tapir"><h2>Tapir</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">val endpoint: Endpoint[I, E, O, R]</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">val endpoint: Endpoint[A, I, E, O, R]</code></pre></div></div></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">Http4sServerOptions.default[F].copy[F](
+    decodeFailureHandler = ...,
+    logRequestHandling = LogRequestHandling[F[Unit]](
+      doLogWhenHandled = ...,
+      doLogAllDecodeFailures = ...,
+      doLogLogicExceptions = ...,
+      noLog = Applicative[F].unit
+    )
+  )</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">Http4sServerOptions.customiseInterceptors[F]
+  .decodeFailureHandler(...)
+  .serverLog(
+    DefaultServerLog[F](
+      doLogWhenReceived = ...,
+      doLogWhenHandled = ...,
+      doLogAllDecodeFailures = ...,
+      doLogExceptions = ...,
+      noLog = Sync[F].unit,
+      logWhenHandled = true,
+      logAllDecodeFailures = false,
+      logLogicExceptions = true
+    )
+  ).options</code></pre></div></div></div></section></section>
+<section><section id="_other_examples_from_history"><h2>Other Examples from History</h2></section><section id="_scala_2_12_to_2_13"><h2>Scala 2.12 to 2.13</h2><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">def convert[Coll[_], A, B](coll: Coll[A])(
+  f: A =&gt; B
+)(
+  implicit bf: CanBuildFrom[Coll[A], A, Coll[B]]
+): Coll[B] = ...
+
+list.to[Vector]</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">def convert[Coll[X] &lt;: Iterable[X], A, B](coll: Coll[A])(
+  f: A =&gt; B
+)(
+  implicit factory: Factory[B, Coll[B]]
+): Coll[B] = ...
+
+list.to(Vector)</code></pre></div></div></div></section><section id="_happy_experiments"><h2>Happy experiments</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p><code>scala-parallel-collections</code></p></li><li class="fragment"><p><code>scala-parser-combinators</code></p></li><li class="fragment"><p><code>scala-continuations</code></p></li></ul></div>
 <aside class="notes"><div class="paragraph"><p>Still present in old textbooks. Usually, you move proven things into standard library, not kick them off inside it and then move out.</p></div></aside></div></section><section id="_neverending_0_x_version"><h2>Neverending 0.x version</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>Circe - 7 years since creation (<a href="https://github.com/circe/circe/releases/tag/v0.1.0">2015</a>), still 0.x</p></li><li class="fragment"><p>Doobie - 7 years between 0.1 (<a href="https://github.com/tpolecat/doobie/releases/tag/v0.1">2014</a>) and 1.0-RC1 (<a href="https://github.com/tpolecat/doobie/releases/tag/v1.0.0-RC1">2021</a>)</p></li><li class="fragment"><p>Http4s - 5 years since creation (<a href="https://github.com/http4s/http4s/releases/tag/v0.1.0">2017</a>), 0.x and unstable milestones 1.0</p></li><li class="fragment"><p>Chimney - 5 years since creation (<a href="https://github.com/scalalandio/chimney/releases/tag/0.1.0">2017</a>), still 0.x</p></li></ul></div>
 <aside class="notes"><div class="paragraph"><p>No guarantees that an update won&#8217;t break an API.</p></div></aside></div></section><section id="_major_version_update"><h2>Major version update</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>Cats Effect 1.0 (2018) to Cats Effect 2.0 (2019) - 1 year</p></li><li class="fragment"><p>Cats Effect 2.0 (2019) to Cats Effect 3.0 (2021) - 2 years</p></li><li class="fragment"><p>ZIO 1.0 (2020) to ZIO 2.0 (2022) - 2 years</p></li></ul></div>
 <aside class="notes"><div class="paragraph"><p>Maintainers tend to overlap the support for new versions but it is still a pain.</p></div></aside></div></section><section id="_monad_of_the_year" class="columns"><h2>Monad of the Year</h2><div class="slide-content"><div class="ulist column"><ul><li class="fragment"><p>Scala&#8217;s Future</p></li><li class="fragment"><p>Scalaz Future</p></li><li class="fragment"><p>Scalaz Task</p></li><li class="fragment"><p>Monix Task</p></li><li class="fragment"><p>Scalaz IO &#8594; ZIO</p></li></ul></div>
 <div class="ulist column"><ul><li class="fragment"><p>free &#8594; freer &#8594; eff</p></li><li class="fragment"><p>monad transformers</p></li><li class="fragment"><p>tagless final</p></li><li class="fragment"><p>MTL</p></li><li class="fragment"><p>ZIO with ZLayers</p></li></ul></div></div></section></section>
 <section id="_some_observations"><h2>Some observations?</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>the "new is always better" attitude</p></li><li class="fragment"><p>which prioritizes greenfield over maintenance</p></li><li class="fragment"><p>relatively (to other languages) frequent breaking changes</p></li><li class="fragment"><p>in statically typed FP world API changes are very invasive</p></li><li class="fragment"><p>how much of your API is defined with the types you directly control?</p></li></ul></div></div></section>
-<section id="_thesis"><h2>Thesis</h2><div class="slide-content"><div class="paragraph"><p>In Scala we have a glory-driven development.</p></div></div></section>
-<section><section id="_what_can_we_do_about_it"><h2>What Can We Do About It?</h2></section><section id="_language"><h2>Language</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>Scala 3 LTS initiative</p></li><li class="fragment"><p>MiMa</p></li><li class="fragment"><p>thinking about tooling when new features are introduced</p></li></ul></div></div></section><section id="_library_maintainers"><h2>Library maintainers</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>not staying on early-semver forever</p></li><li class="fragment"><p>committing to major version for a long time</p></li><li class="fragment"><p>deciding when the API would be "good enough" to stop rewriting it without some graceful migration strategy</p></li></ul></div></div></section></section>
-<section id="_summary"><h2>Summary</h2></section>
+<section id="_thesis"><h2>Thesis</h2><div class="slide-content"><div class="paragraph fragment"><p>In Scala we have a glory-driven development.</p></div></div></section>
+<section><section id="_what_can_we_do_about_it"><h2>What Can We Do About It?</h2></section><section id="_language"><h2>Language</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>Scala 3 LTS initiative</p></li><li class="fragment"><p>MiMa</p></li><li class="fragment"><p>thinking about tooling when new features are introduced</p></li></ul></div></div></section><section id="_library_maintainers"><h2>Library maintainers</h2><div class="slide-content"><div class="ulist"><ul><li class="fragment"><p>not staying on early-semver forever</p></li><li class="fragment"><p>committing to major version for a long time</p></li><li class="fragment"><p>deciding when the API would be "good enough" to stop rewriting it without some graceful migration strategy</p></li></ul></div></div></section><section id="_library_users"><h2>Library users</h2></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">def listUsers(
+  fetchUsers: IO[List[User]],
+  printUser: User =&gt; IO[Unit]
+): IO[Unit] =
+  fetchUsers.flatMap(users =&gt; users.traverse(printUser))</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">def listUsers[F[_]: Monad, G[_]: Traverse](
+  fetchUsers: F[G[User]],
+  printUser: User =&gt; F[Unit]
+): F[Unit] =
+  fetchUsers.flatMap(users =&gt; users.traverse(printUser))</code></pre></div></div>
+<aside class="notes"><div class="paragraph"><p>What do you see here? Someone elses types!</p></div></aside></div></section><section><div class="slide-content"><div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">package com.mycompany.distributed
+
+export akka.*</code></pre></div></div>
+<div class="listingblock"><div class="content"><pre class="highlightjs highlight"><code class="language-scala hljs" data-noescape="true" data-lang="scala">opaque type Result[-E, +A] = ...
+
+object Result:
+  // utilities
+
+  extension[E, A](result: Result[E, A])
+    // extension methods</code></pre></div></div></div></section></section>
 <section id="_thank_you"><h2>Thank You!</h2></section></div></div><script src="./reveal.js/dist/reveal.js"></script><script>Array.prototype.slice.call(document.querySelectorAll('.slides section')).forEach(function(slide) {
   if (slide.getAttribute('data-background-color')) return;
   // user needs to explicitly say he wants CSS color to override otherwise we might break custom css or theme (#226)

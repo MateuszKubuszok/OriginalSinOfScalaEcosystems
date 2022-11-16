@@ -82,7 +82,7 @@ Nice for new users, worse for existing users.
 Also:
 
 [%step]
-* forced updated of libraries which depended on CE: FS2, Http4s, Doobie
+* forced updates of libraries which depended on CE: FS2, Http4s, Doobie
 * there is no Monix for Cats Effect 3 ATM
 
 === Monix and ``Local``
@@ -184,19 +184,76 @@ import org.http4s.blaze.server.BlazeServerBuilder
 import org.typelevel.ci.CIString
 --
 
+=== Tapir
+
+[source, scala]
+--
+val endpoint: Endpoint[I, E, O, R]
+--
+
+[source, scala]
+--
+val endpoint: Endpoint[A, I, E, O, R]
+--
+
 === !
 
-TODO
+[source, scala]
+--
+Http4sServerOptions.default[F].copy[F](
+    decodeFailureHandler = ...,
+    logRequestHandling = LogRequestHandling[F[Unit]](
+      doLogWhenHandled = ...,
+      doLogAllDecodeFailures = ...,
+      doLogLogicExceptions = ...,
+      noLog = Applicative[F].unit
+    )
+  )
+--
 
-* Tapir 0.x to 1.x
-* added new type parameter (representing auth)
-* changed the format of configs
+[source, scala]
+--
+Http4sServerOptions.customiseInterceptors[F]
+  .decodeFailureHandler(...)
+  .serverLog(
+    DefaultServerLog[F](
+      doLogWhenReceived = ...,
+      doLogWhenHandled = ...,
+      doLogAllDecodeFailures = ...,
+      doLogExceptions = ...,
+      noLog = Sync[F].unit,
+      logWhenHandled = true,
+      logAllDecodeFailures = false,
+      logLogicExceptions = true
+    )
+  ).options
+--
 
 == Other Examples from History
 
 === Scala 2.12 to 2.13
 
-TODO
+[source, scala]
+--
+def convert[Coll[_], A, B](coll: Coll[A])(
+  f: A => B
+)(
+  implicit bf: CanBuildFrom[Coll[A], A, Coll[B]]
+): Coll[B] = ...
+
+list.to[Vector]
+--
+
+[source, scala]
+--
+def convert[Coll[X] <: Iterable[X], A, B](coll: Coll[A])(
+  f: A => B
+)(
+  implicit factory: Factory[B, Coll[B]]
+): Coll[B] = ...
+
+list.to(Vector)
+--
 
 === Happy experiments
 
@@ -266,6 +323,7 @@ Maintainers tend to overlap the support for new versions but it is still a pain.
 
 == Thesis
 
+[%step]
 In Scala we have a glory-driven development.
 
 == What Can We Do About It?
@@ -284,7 +342,52 @@ In Scala we have a glory-driven development.
 * committing to major version for a long time
 * deciding when the API would be "good enough" to stop rewriting it without some graceful migration strategy
 
-== Summary
+=== Library users
+
+=== !
+
+[source, scala]
+--
+def listUsers(
+  fetchUsers: IO[List[User]],
+  printUser: User => IO[Unit]
+): IO[Unit] =
+  fetchUsers.flatMap(users => users.traverse(printUser))
+--
+
+[source, scala]
+--
+def listUsers[F[_]: Monad, G[_]: Traverse](
+  fetchUsers: F[G[User]],
+  printUser: User => F[Unit]
+): F[Unit] =
+  fetchUsers.flatMap(users => users.traverse(printUser))
+--
+
+[NOTE.speaker]
+--
+What do you see here? Someone elses types!
+--
+
+=== !
+
+[source, scala]
+--
+package com.mycompany.distributed
+
+export akka.*
+--
+
+[source, scala]
+--
+opaque type Result[-E, +A] = ...
+
+object Result:
+  // utilities
+
+  extension[E, A](result: Result[E, A])
+    // extension methods
+--
 
 == Thank You!
 
